@@ -6,8 +6,6 @@ This tool generates a unified installation script for Trend Micro's Server & Wor
 
 The script generator takes deployment scripts from both the Server & Workload Security console and Vision One console and combines them into a single installation script that deploys both agents in sequence. The original scripts are preserved exactly as they are, ensuring compatibility and reliability.
 
-Note: All .sh files except InstallScriptGenerator.sh are git-ignored to prevent committing sensitive deployment scripts or generated files.
-
 ## Prerequisites
 
 Before using this script generator, you need:
