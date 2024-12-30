@@ -1,0 +1,2 @@
+*.sh
+!InstallScriptGenerator.sh
