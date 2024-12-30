@@ -28,13 +28,27 @@ Before using this script generator, you need:
 
 1. Generate deployment scripts from both consoles:
    - From Server & Workload Security console:
-     * Navigate to Support > Deployment Scripts
-     * Configure deployment options
-     * Copy the generated script
+     * Navigate to Updates > Software > Local
+     * Click "Generate Deployment Scripts..." button
+     * Configure the following options:
+       - Platform: macOS Agent Deployment
+       - Activate Agent automatically after installation (checked)
+       - Security Policy: Select as needed
+       - Computer Group: Select as needed
+       - Relay Group: Select as needed
+       - Configure proxy settings if required
+       - Validate Workload Security Manager TLS certificate (recommended)
+     * Click "Copy to Clipboard" to get the script
    
    - From Vision One console:
-     * Navigate to Endpoint Inventory > Deployment
-     * Configure deployment options
+     * Navigate to Endpoint Security > Endpoint Inventory
+     * Click "Agent Installer" button in the top-right corner
+     * Select the "Deployment Script" tab
+     * Configure the following options:
+       - Protection type: Endpoint Sensor
+       - Operating system: macOS
+       - Proxy for deployment: Direct connect (or configure proxy if needed)
+       - Validate Trend Vision One server TLS certificate (recommended)
      * Copy the generated script
 
 2. Run the script generator:

@@ -16,13 +16,37 @@ cat << "EOF"
 Trend Micro Combined Deployment Script Generator
 ========================================================
 
-Before running this script, you need:
+Prerequisites:
 
 1. From Server & Workload Security console:
-   - Configure deployment options and copy the full script
-   
+   - Navigate to Updates > Software > Local
+   - Click "Generate Deployment Scripts..."
+   - Configure the following options:
+     * Platform: macOS Agent Deployment
+     * Activate Agent automatically after installation (checked)
+     * Security Policy: Select as needed
+     * Computer Group: Select as needed
+     * Relay Group: Select as needed
+     * Configure proxy settings if required
+     * Validate Workload Security Manager TLS certificate (recommended)
+   - Click "Copy to Clipboard" to get the script
+
 2. From Vision One console:
-   - Configure deployment options and copy the full script
+   - Navigate to Endpoint Security > Endpoint Inventory
+   - Click "Agent Installer" button in the top-right corner
+   - Select the "Deployment Script" tab
+   - Configure the following options:
+     * Protection type: Endpoint Sensor
+     * Operating system: macOS
+     * Proxy for deployment: Direct connect (or configure proxy if needed)
+     * Validate Trend Vision One server TLS certificate (recommended)
+   - Copy the generated script
+
+3. System Requirements:
+   - macOS 10.15 (Catalina) or later
+   - Root/sudo privileges
+   - Internet connectivity to Trend Micro servers
+   - Curl with TLS support
 
 Please paste each script when prompted.
 EOF
