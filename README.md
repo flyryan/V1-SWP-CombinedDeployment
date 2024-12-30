@@ -4,7 +4,9 @@ This tool generates a unified installation script for Trend Micro's Server & Wor
 
 ## Overview
 
-The script generator takes deployment scripts from both the Server & Workload Security console and Vision One console, extracts the necessary configuration parameters, and generates a combined installation script that can deploy both agents efficiently.
+The script generator takes deployment scripts from both the Server & Workload Security console and Vision One console and combines them into a single installation script that deploys both agents in sequence. The original scripts are preserved exactly as they are, ensuring compatibility and reliability.
+
+Note: All .sh files except InstallScriptGenerator.sh are git-ignored to prevent committing sensitive deployment scripts or generated files.
 
 ## Prerequisites
 
@@ -60,8 +62,6 @@ Before using this script generator, you need:
 3. When prompted:
    - Paste the Server & Workload Security script (press Ctrl+D when finished)
    - Paste the Vision One script (press Ctrl+D when finished)
-   - Review the parsed information
-   - Confirm if the information is correct
 
 4. The generator will create a combined installation script named `trend_combined_install.sh`
 
@@ -72,13 +72,14 @@ Before using this script generator, you need:
 
 ## Features
 
-- **Unified Installation**: Installs both agents in a single operation
-- **Proxy Support**: Handles proxy configuration for both agents
-- **Platform Validation**: Checks OS version compatibility
-- **Robust Error Handling**: Comprehensive error checking and reporting
-- **Detailed Logging**: Maintains separate logs for troubleshooting
-- **Service Verification**: Ensures services are properly initialized
-- **Secure Operations**: Proper handling of credentials and temporary files
+- **Sequential Installation**: Installs both agents one after the other, preserving their original installation logic
+- **Proxy Support**: Maintains original proxy handling from each script
+- **Platform Validation**: Checks OS version compatibility before installation
+- **Robust Error Handling**: Verifies each installation step
+- **Detailed Logging**: Maintains separate and combined logs for troubleshooting
+- **Service Verification**: Ensures each agent's services are properly running
+- **Secure Operations**: Proper handling of temporary files and cleanup
+- **Version Control**: Ignores sensitive scripts while tracking only the generator
 
 ## Logging
 
