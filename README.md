@@ -77,7 +77,6 @@ Before using this script generator, you need:
 - **Detailed Logging**: Maintains separate and combined logs for troubleshooting
 - **Service Verification**: Ensures each agent's services are properly running
 - **Secure Operations**: Proper handling of temporary files and cleanup
-- **Version Control**: Ignores sensitive scripts while tracking only the generator
 
 ## Logging
 
