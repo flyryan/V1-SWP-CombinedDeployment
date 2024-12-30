@@ -56,7 +56,7 @@ echo "Paste the entire S&W deployment script (Press Ctrl+D when finished):"
 cat > "$sw_temp_file"
 
 echo -e "\n=== Vision One Script ===\n"
-echo "Paste the entire Vision One deployment script (Press Ctrl+D when finished):"
+echo "Paste the entire Vision One deployment script (Press Ctrl+D when finished - Note: You may have to press twice.):"
 cat > "$v1_temp_file"
 
 # Basic validation of input scripts
