@@ -55,16 +55,14 @@ echo -e "\n=== Server & Workload Security Script ===\n"
 echo "Paste the entire S&W deployment script (Press Ctrl+D when finished):"
 cat > "$sw_temp_file"
 
-# Parse S&W script with error checking
-SW_URL=$(grep 'dsa_control" -a' "$sw_temp_file" | sed -E 's/.*-a ([^ ]+).*/\1/' || echo "")
-TENANT_ID=$(grep 'tenantID:' "$sw_temp_file" | sed -E 's/.*tenantID:([^"]*).*/\1/' || echo "")
-TOKEN=$(grep 'token:' "$sw_temp_file" | sed -E 's/.*token:([^"]*).*/\1/' || echo "")
-POLICY_ID=$(grep 'policyid:' "$sw_temp_file" | sed -E 's/.*policyid:([^"]*).*/\1/' || echo "")
+# Parse S&W script
+PACKAGE_URL=$(grep 'packageUrl=' "$sw_temp_file" | grep -v '\$' | sed -E 's/.*packageUrl="([^"]+)".*/\1/' || echo "")
+ACTIVATION_CMD=$(grep 'dsa_control" -a' "$sw_temp_file" | sed -E 's/.*\$dsa_control" (.+)/\1/' || echo "")
 MANAGER_PROXY=$(grep 'manager_proxy=' "$sw_temp_file" | cut -d'"' -f2 || echo "")
 MANAGER_PROXY_CRED=$(grep 'manager_proxy_credential=' "$sw_temp_file" | cut -d'"' -f2 || echo "")
 
 # Validate S&W required variables
-if [[ -z "$SW_URL" || -z "$TENANT_ID" || -z "$TOKEN" || -z "$POLICY_ID" ]]; then
+if [[ -z "$PACKAGE_URL" || -z "$ACTIVATION_CMD" ]]; then
     echo "Error: Failed to parse required Server & Workload Security variables"
     exit 1
 fi
@@ -73,16 +71,15 @@ echo -e "\n=== Vision One Script ===\n"
 echo "Paste the entire Vision One deployment script (Press Ctrl+D when finished):"
 cat > "$v1_temp_file"
 
-# Parse Vision One script with error checking
-V1_ENV=$(grep 'XBC_FQDN=' "$v1_temp_file" | sed -E 's/.*api-([^.]+).xbc.*/\1/' || echo "")
-V1_COMPANY_ID=$(grep 'company_id' "$v1_temp_file" | sed -E 's/.*"company_id":"([^"]*).*/\1/' || echo "")
-V1_TOKEN=$(grep 'scenario_ids' "$v1_temp_file" | sed -E 's/.*"scenario_ids":\["([^"]*).*/\1/' || echo "")
-V1_PROXY_ADDR=$(grep 'PROXY_ADDR_PORT=' "$v1_temp_file" | cut -d'"' -f2 || echo "")
-V1_PROXY_USER=$(grep 'PROXY_USERNAME=' "$v1_temp_file" | cut -d'"' -f2 || echo "")
-V1_PROXY_PASS=$(grep 'PROXY_PASSWORD=' "$v1_temp_file" | cut -d'"' -f2 || echo "")
+# Parse Vision One script
+V1_CURL_CMD=$(grep 'CURL_OUT=' "$v1_temp_file" | sed -E 's/CURL_OUT=\$\((.*)\)/\1/' || echo "")
+V1_PROPERTY=$(grep 'PROPERTY=' "$v1_temp_file" | cut -d'=' -f2- || echo "")
+V1_PROXY_ADDR=$(grep 'PROXY_ADDR_PORT=' "$v1_temp_file" | cut -d'=' -f2 | tr -d ' "' || echo "")
+V1_PROXY_USER=$(grep 'PROXY_USERNAME=' "$v1_temp_file" | cut -d'=' -f2 | tr -d ' "' || echo "")
+V1_PROXY_PASS=$(grep 'PROXY_PASSWORD=' "$v1_temp_file" | cut -d'=' -f2 | tr -d ' "' || echo "")
 
 # Validate V1 required variables
-if [[ -z "$V1_ENV" || -z "$V1_TOKEN" || -z "$V1_COMPANY_ID" ]]; then
+if [[ -z "$V1_CURL_CMD" || -z "$V1_PROPERTY" ]]; then
     echo "Error: Failed to parse required Vision One variables"
     exit 1
 fi
@@ -90,16 +87,14 @@ fi
 # Show parsed information for verification
 echo -e "\nParsed Information:"
 echo -e "\nServer & Workload Security:"
-echo "Manager URL: $SW_URL"
-echo "Tenant ID: $TENANT_ID"
-echo "Policy ID: $POLICY_ID"
+echo "Package URL: $PACKAGE_URL"
+echo "Activation Command: $ACTIVATION_CMD"
 echo "Manager Proxy: ${MANAGER_PROXY:-None}"
 echo "Manager Proxy Credentials: ${MANAGER_PROXY_CRED:+Configured}"
 
 echo -e "\nVision One:"
-echo "Environment: $V1_ENV"
-echo "Token: $V1_TOKEN"
-echo "Company ID: $V1_COMPANY_ID"
+echo "Curl Command: $V1_CURL_CMD"
+echo "Property: $V1_PROPERTY"
 echo "Proxy Address: ${V1_PROXY_ADDR:-None}"
 echo "Proxy Username: ${V1_PROXY_USER:-None}"
 echo "Proxy Password: ${V1_PROXY_PASS:+Configured}"
@@ -202,8 +197,8 @@ log "INFO" "Starting Server & Workload Protection installation..."
 
 # Download S&W package
 log "INFO" "Downloading S&W agent package..."
-packageUrl="https://app.deepsecurity.trendmicro.com:443/software/agent/macOS/universal/agent.pkg?tenantID=$TENANT_ID&macOSVersion=\${osVersion}.\${buildVersion}"
-curl -v --tlsv1.2 -L -o "\$TEMP_DIR/agent.pkg" "\$packageUrl"
+packageUrl="$PACKAGE_URL"
+curl -v -H "Agent-Version-Control: on" --tlsv1.2 -L -o "\$TEMP_DIR/agent.pkg" "\$packageUrl"
 if [[ \$? -eq 60 ]]; then
     log "ERROR" "TLS certificate validation failed for S&W package download"
     exit 1
@@ -247,7 +242,7 @@ if [[ -n "$MANAGER_PROXY" ]]; then
         "\$dsa_control" -u "$MANAGER_PROXY_CRED"
     fi
 fi
-"\$dsa_control" -a "$SW_URL" "tenantID:$TENANT_ID" "token:$TOKEN" "policyid:$POLICY_ID"
+"\$dsa_control" $ACTIVATION_CMD
 if [[ \$? -ne 0 ]]; then
     log "ERROR" "Failed to activate S&W agent"
     exit 1
@@ -264,19 +259,10 @@ fi
 # =====================
 log "INFO" "Starting Vision One Endpoint Sensor installation..."
 
-# Prepare V1 variables
-XBC_ENV="$V1_ENV"
-XBC_AGENT_TOKEN="$V1_TOKEN"
-HTTP_BODY='{\"company_id\":\"$V1_COMPANY_ID\",\"platform\":\"mac64\",\"scenario_ids\":[\"$V1_TOKEN\"]}'
-
 # Download V1 package
 log "INFO" "Downloading V1 Endpoint Sensor..."
-CURL_OPTIONS="--tlsv1.2"
-XBC_FQDN="api-\${XBC_ENV}.xdr.trendmicro.com"
-GET_INSTALLER_URL="https://\${XBC_FQDN}/apk/installer"
 INSTALLER_PATH="\$TEMP_DIR/v1es_installer.zip"
-
-CURL_OUT=\$(curl -w "%{http_code}" -L -H "Content-Type: application/json" -d "\$HTTP_BODY" -o "\$INSTALLER_PATH" \$CURL_OPTIONS "\$GET_INSTALLER_URL")
+CURL_OUT=\$(${V1_CURL_CMD/\$INSTALLER_PATH/\$INSTALLER_PATH})
 if [[ \$? -eq 60 ]]; then
     log "ERROR" "TLS certificate validation failed for V1 package download"
     exit 1
@@ -300,25 +286,24 @@ if [[ ! -f "\$PKG_PATH" ]]; then
 fi
 
 # Configure V1 installation
-PROPERTY="{\\"xbc_env\\": \\"\$XBC_ENV\\", \\"xbc_agent_token\\": \\"\$XBC_AGENT_TOKEN\\", \\"full_package\\": true}"
+PROPERTY=$V1_PROPERTY
 echo "\$PROPERTY" | plutil -convert xml1 -o "\$TEMP_DIR/endpoint_basecamp.conf.plist" -
 
 # Configure connection methods
+CONNECT_CONFIG=\$(printf '{"fps":[{"connections": [{"type": "DIRECT_CONNECT"}]}]}' | base64)
 if [[ -n "$V1_PROXY_ADDR" ]]; then
     PROXY_CONFIG=\$(printf "http://$V1_PROXY_ADDR" | base64)
     if [[ -n "$V1_PROXY_USER" ]]; then
+        PROXY_CONFIG=\$(printf "http://$V1_PROXY_USER:@$V1_PROXY_ADDR" | base64)
         if [[ -n "$V1_PROXY_PASS" ]]; then
             PROXY_CONFIG=\$(printf "http://$V1_PROXY_USER:$V1_PROXY_PASS@$V1_PROXY_ADDR" | base64)
-        else
-            PROXY_CONFIG=\$(printf "http://$V1_PROXY_USER:@$V1_PROXY_ADDR" | base64)
         fi
     fi
     CONNECT_CONFIG=\$(printf '{"fps":[{"connections": [{"type": "USER_INPUT"}]}]}' | base64)
-    defaults write com.trendmicro.endpointbasecamp user_proxy_config -string "\$PROXY_CONFIG"
-else
-    CONNECT_CONFIG=\$(printf '{"fps":[{"connections": [{"type": "DIRECT_CONNECT"}]}]}' | base64)
 fi
+
 defaults write com.trendmicro.endpointbasecamp user_connect_config -string "\$CONNECT_CONFIG"
+defaults write com.trendmicro.endpointbasecamp user_proxy_config -string "\$PROXY_CONFIG"
 
 # Install V1 package
 log "INFO" "Installing V1 Endpoint Sensor..."
