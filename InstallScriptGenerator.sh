@@ -74,9 +74,9 @@ echo "Paste the entire Vision One deployment script (Press Ctrl+D when finished)
 cat > "$v1_temp_file"
 
 # Parse Vision One script with error checking
-V1_ENV=$(grep 'XBC_ENV=' "$v1_temp_file" | cut -d'"' -f2 || echo "")
-V1_TOKEN=$(grep 'XBC_AGENT_TOKEN=' "$v1_temp_file" | cut -d'"' -f2 || echo "")
+V1_ENV=$(grep 'XBC_FQDN=' "$v1_temp_file" | sed -E 's/.*api-([^.]+).xbc.*/\1/' || echo "")
 V1_COMPANY_ID=$(grep 'company_id' "$v1_temp_file" | sed -E 's/.*"company_id":"([^"]*).*/\1/' || echo "")
+V1_TOKEN=$(grep 'scenario_ids' "$v1_temp_file" | sed -E 's/.*"scenario_ids":\["([^"]*).*/\1/' || echo "")
 V1_PROXY_ADDR=$(grep 'PROXY_ADDR_PORT=' "$v1_temp_file" | cut -d'"' -f2 || echo "")
 V1_PROXY_USER=$(grep 'PROXY_USERNAME=' "$v1_temp_file" | cut -d'"' -f2 || echo "")
 V1_PROXY_PASS=$(grep 'PROXY_PASSWORD=' "$v1_temp_file" | cut -d'"' -f2 || echo "")
