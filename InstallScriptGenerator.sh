@@ -130,18 +130,25 @@ else
     SWP_SCRIPT="/tmp/swp_install_$$.sh"
     trap 'rm -f "$SWP_SCRIPT"' EXIT
     cat > "$SWP_SCRIPT" << 'SWPEOF'
-    set -e
-    trap 'exit $?' ERR
 EOT
 
-# Append SWP script content
-cat "$sw_temp_file" >> "$combined_temp"
+# Append SWP script content, preserving original script but removing shebang
+sed '1d' "$sw_temp_file" >> "$combined_temp"
 
 cat >> "$combined_temp" << 'EOT'
 SWPEOF
     chmod +x "$SWP_SCRIPT"
-    /bin/bash -e "$SWP_SCRIPT"
-    rm -f "$SWP_SCRIPT"
+    # Execute SWP script with proper environment
+    (
+        # Create a clean environment
+        cd /tmp
+        export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        export LANG=en_US.UTF-8
+        export LC_ALL=en_US.UTF-8
+        
+        # Run the script with debug output
+        env -i PATH="$PATH" LANG="$LANG" LC_ALL="$LC_ALL" HOME="$HOME" USER="$USER" LOGNAME="$USER" SHELL="/bin/bash" /bin/bash "$SWP_SCRIPT" 2>&1 | tee -a "$INSTALL_LOG"
+    )
     SWP_RESULT=$?
     
     # Verify S&W installation
