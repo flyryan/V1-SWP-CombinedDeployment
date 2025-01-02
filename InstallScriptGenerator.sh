@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e  # Exit on error
+# Don't use set -e as we want to control error handling manually
 
 # Secure temporary file creation with cleanup trap
 cleanup() {
@@ -137,21 +137,29 @@ cat >> "$combined_temp" << 'EOT'
     # Verify S&W installation
     if ! launchctl list "com.trendmicro.dsa" &>/dev/null; then
         log "ERROR" "Server & Workload agent is not running"
-        exit 1
+        if [[ "$AUTO_CONTINUE" != "true" ]]; then
+            log "INFO" "Installation failed. Please check logs and try again."
+            exit 1
+        else
+            log "WARNING" "Server & Workload agent installation failed, but continuing due to --auto-continue flag"
+        fi
+    else
+        log "INFO" "Server & Workload installation completed successfully"
     fi
-
-    log "INFO" "Server & Workload installation completed successfully"
 fi
 
 # =====================
 # Vision One Installation
 # =====================
 
-# Check if auto-continue flag is set
+# Only prompt for continuation if SWP was installed and auto-continue is not set
 if [[ "$AUTO_CONTINUE" != "true" && "$SKIP_SWP" != "true" ]]; then
     echo -n "Press Enter to continue with Vision One installation or Ctrl+C to cancel..."
     read
 fi
+
+# Reset any potential error state before V1 installation
+set +e
 
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
@@ -168,15 +176,27 @@ grep -v '^#!' "$v1_temp_file" >> "$combined_temp"
 cat >> "$combined_temp" << 'EOT'
 
 # Verify V1 installation
+V1_SUCCESS=false
 if ! launchctl list "com.trendmicro.EDRAgent" &>/dev/null; then
     log "ERROR" "Vision One Endpoint Sensor is not running" "v1"
-    exit 1
+    if [[ "$AUTO_CONTINUE" != "true" ]]; then
+        log "INFO" "Installation failed. Please check logs and try again."
+        exit 1
+    fi
+else
+    V1_SUCCESS=true
+    log "INFO" "Vision One installation completed successfully" "v1"
 fi
 
-log "INFO" "Vision One installation completed successfully" "v1"
-log "INFO" "Combined installation completed successfully!"
-log "INFO" "Check $INSTALL_LOG and $V1_INSTALL_LOG for detailed logs"
+# Final status check
+if [[ "$SKIP_SWP" == "true" && "$V1_SUCCESS" == "true" ]] || \
+   [[ "$V1_SUCCESS" == "true" && $(launchctl list "com.trendmicro.dsa" &>/dev/null; echo $?) -eq 0 ]]; then
+    log "INFO" "Combined installation completed successfully!"
+else
+    log "WARNING" "Installation completed with some components potentially not running"
+fi
 
+log "INFO" "Check $INSTALL_LOG and $V1_INSTALL_LOG for detailed logs"
 exit 0
 EOT
 
