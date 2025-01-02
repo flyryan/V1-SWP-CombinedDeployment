@@ -181,27 +181,31 @@ if [[ "$AUTO_CONTINUE" != "true" && "$SKIP_SWP" != "true" ]]; then
     read
 fi
 
-# Reset any potential error state before V1 installation
-set +e
-
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
-    # Create and execute V1 installation script
+# Create and execute V1 installation script
 V1_SCRIPT="/tmp/v1_install_$$.sh"
-    trap 'rm -f "$V1_SCRIPT"' EXIT
-    cat > "$V1_SCRIPT" << 'V1EOF'
-    set -e
-    trap 'exit $?' ERR
+cat > "$V1_SCRIPT" << V1EOF
+#!/bin/bash
+
+# Ensure log directory exists
+mkdir -p "$(dirname "${V1_INSTALL_LOG}")"
 EOT
 
-# Append V1 script content
-cat "$v1_temp_file" >> "$combined_temp"
+# Append V1 script content, preserving original script but removing shebang
+sed '1d' "$v1_temp_file" >> "$combined_temp"
 
 cat >> "$combined_temp" << 'EOT'
 V1EOF
-    chmod +x "$V1_SCRIPT"
-    /bin/bash -e "$V1_SCRIPT"
-    rm -f "$V1_SCRIPT"
+chmod +x "$V1_SCRIPT"
+# Execute V1 script with proper environment
+(
+    cd /tmp
+    export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    export LANG=en_US.UTF-8
+    export LC_ALL=en_US.UTF-8
+    /bin/bash "$V1_SCRIPT" 2>&1 | tee -a "$V1_INSTALL_LOG"
+)
 V1_RESULT=$?
 EOT
 
