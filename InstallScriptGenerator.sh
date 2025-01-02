@@ -79,16 +79,9 @@ cat > "$SCRIPT_NAME" << 'EOT'
 # Combined Trend Micro Server & Workload + Vision One Endpoint Sensor Installer
 # Generated: $(date)
 
-# Enable debug output
-set -x
-
-# Exit on error
-set -e
-
 # Global Variables
 INSTALL_LOG="/var/log/trend_install.log"
 V1_INSTALL_LOG="/tmp/v1es_install.log"
-V1_DEBUG_LOG="/tmp/v1es_debug.log"
 
 # Check root privileges
 if [[ $(whoami) != "root" ]]; then
@@ -96,57 +89,34 @@ if [[ $(whoami) != "root" ]]; then
     exit 1
 fi
 
-# Logging function with debug info
+# Logging function
 log() {
     local level="$1"
     local message="$2"
-    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
     echo "[$level] $message"
-    echo "$timestamp [$level] $message" >> "$INSTALL_LOG"
+    echo "$(date) [$level] $message" >> "$INSTALL_LOG"
     if [[ "$3" == "v1" ]]; then
-        echo "$timestamp [$level] $message" >> "$V1_INSTALL_LOG"
-        # Add debug info
-        echo "$timestamp [$level] Current user: $(whoami)" >> "$V1_DEBUG_LOG"
-        echo "$timestamp [$level] Current directory: $(pwd)" >> "$V1_DEBUG_LOG"
-        echo "$timestamp [$level] Environment:" >> "$V1_DEBUG_LOG"
-        env >> "$V1_DEBUG_LOG"
-    fi
-}
-
-# Platform check function
-check_platform() {
-    local osVersion=$(sw_vers -productVersion)
-    local major=$(echo $osVersion | cut -d "." -f1)
-    local minor=$(echo $osVersion | cut -d "." -f2)
-    
-    log "INFO" "Detected macOS version: $osVersion"
-    
-    if [[ $major -le 10 && $minor -le 14 ]]; then
-        log "ERROR" "Unsupported platform detected"
-        exit 1
+        echo "$(date) [$level] $message" >> "$V1_INSTALL_LOG"
     fi
 }
 
 log "INFO" "Starting combined Trend Micro installation..."
-
-# Check platform compatibility
-check_platform
 
 # =====================
 # Server & Workload Installation
 # =====================
 log "INFO" "Starting Server & Workload Protection installation..."
 
-# Execute S&W installation commands
-{
+# Execute S&W installation in a subshell to isolate variables
+(
 EOT
 
-# Append S&W script content
-cat "$sw_temp_file" >> "$SCRIPT_NAME"
+# Append S&W script content, removing the shebang line if present
+sed '1{/^#!/d}' "$sw_temp_file" >> "$SCRIPT_NAME"
 
 # Continue the combined script
 cat >> "$SCRIPT_NAME" << 'EOT'
-} 2>&1 | tee -a "$INSTALL_LOG"
+) 2>&1 | tee -a "$INSTALL_LOG"
 
 # Verify S&W installation
 if ! launchctl list "com.trendmicro.dsa" &>/dev/null; then
@@ -168,16 +138,16 @@ fi
 
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
-# Execute Vision One installation commands
-{
+# Execute Vision One installation in a subshell to isolate variables
+(
 EOT
 
-# Append V1 script content
-cat "$v1_temp_file" >> "$SCRIPT_NAME"
+# Append V1 script content, removing the shebang line if present
+sed '1{/^#!/d}' "$v1_temp_file" >> "$SCRIPT_NAME"
 
 # Finish the combined script
 cat >> "$SCRIPT_NAME" << 'EOT'
-} 2>&1 | tee -a "$V1_INSTALL_LOG"
+) 2>&1 | tee -a "$V1_INSTALL_LOG"
 
 # Verify V1 installation
 if ! launchctl list "com.trendmicro.EDRAgent" &>/dev/null; then
