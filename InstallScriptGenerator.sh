@@ -79,11 +79,16 @@ cat << 'EOT' > "$SCRIPT_NAME"
 # Combined Trend Micro Server & Workload + Vision One Endpoint Sensor Installer
 # Generated: $(date)
 
-set -e  # Exit on error
+# Enable debug output
+set -x
+
+# Exit on error
+set -e
 
 # Global Variables
 INSTALL_LOG="/var/log/trend_install.log"
 V1_INSTALL_LOG="/tmp/v1es_install.log"
+V1_DEBUG_LOG="/tmp/v1es_debug.log"
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
@@ -93,14 +98,20 @@ if [[ $(whoami) != "root" ]]; then
     exit 1
 fi
 
-# Logging function
+# Logging function with debug info
 log() {
     local level="$1"
     local message="$2"
+    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
     echo "[$level] $message"
-    echo "$(date) [$level] $message" >> "$INSTALL_LOG"
+    echo "$timestamp [$level] $message" >> "$INSTALL_LOG"
     if [[ "$3" == "v1" ]]; then
-        echo "$(date) [$level] $message" >> "$V1_INSTALL_LOG"
+        echo "$timestamp [$level] $message" >> "$V1_INSTALL_LOG"
+        # Add debug info
+        echo "$timestamp [$level] Current user: $(whoami)" >> "$V1_DEBUG_LOG"
+        echo "$timestamp [$level] Current directory: $(pwd)" >> "$V1_DEBUG_LOG"
+        echo "$timestamp [$level] Environment:" >> "$V1_DEBUG_LOG"
+        env >> "$V1_DEBUG_LOG"
     fi
 }
 
@@ -187,14 +198,24 @@ V1EOF
 chmod +x "$V1_SCRIPT"
 log "INFO" "Executing Vision One installation..." "v1"
 
+# Debug info before V1 execution
+log "DEBUG" "About to execute V1 script" "v1"
+log "DEBUG" "Script path: $V1_SCRIPT" "v1"
+log "DEBUG" "Current directory: $(pwd)" "v1"
+log "DEBUG" "Current user: $(whoami)" "v1"
+
 # Execute V1 script with preserved environment and sudo context
 (
     cd "$TEMP_DIR"
-    if ! sudo -E bash "$V1_SCRIPT" 2>&1 | tee -a "$V1_INSTALL_LOG"; then
-        log "ERROR" "Vision One installation failed" "v1"
+    # Capture both stdout and stderr
+    if ! sudo -E bash "$V1_SCRIPT" > >(tee -a "$V1_INSTALL_LOG") 2> >(tee -a "$V1_DEBUG_LOG" >&2); then
+        log "ERROR" "Vision One installation failed. Check $V1_DEBUG_LOG for details" "v1"
         exit 1
     fi
 )
+
+# Debug info after V1 execution
+log "DEBUG" "V1 script execution completed" "v1"
 
 # Verify V1 installation
 if ! launchctl list "com.trendmicro.EDRAgent" &>/dev/null; then
@@ -205,6 +226,7 @@ fi
 log "INFO" "Vision One installation completed successfully" "v1"
 log "INFO" "Combined installation completed successfully!"
 log "INFO" "Check $INSTALL_LOG and $V1_INSTALL_LOG for detailed logs"
+log "INFO" "For debugging information, check $V1_DEBUG_LOG"
 
 exit 0
 EOT
@@ -216,3 +238,4 @@ echo -e "\nCombined installation script has been generated: $SCRIPT_NAME"
 echo "Copy this script to target machines and run with sudo"
 echo "To skip the Vision One installation confirmation prompt, use: sudo ./$SCRIPT_NAME --auto-continue"
 echo "Installation logs will be written to /var/log/trend_install.log and /tmp/v1es_install.log"
+echo "Debug logs will be written to /tmp/v1es_debug.log"
