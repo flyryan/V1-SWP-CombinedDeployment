@@ -126,17 +126,22 @@ if [[ "$SKIP_SWP" == "true" ]]; then
 else
     log "INFO" "Starting Server & Workload Protection installation..."
     
-    # Run SWP installation in an isolated subshell
-    (
-    set -e  # Enable exit on error for this subshell only
+    # Create and execute SWP installation script
+    SWP_SCRIPT="/tmp/swp_install_$$.sh"
+    trap 'rm -f "$SWP_SCRIPT"' EXIT
+    cat > "$SWP_SCRIPT" << 'SWPEOF'
+    set -e
+    trap 'exit $?' ERR
 EOT
 
-# Append S&W script content, removing only the shebang
-sed '/^#!/d' "$sw_temp_file" >> "$combined_temp"
+# Append SWP script content
+cat "$sw_temp_file" >> "$combined_temp"
 
-# Close the subshell and capture result
 cat >> "$combined_temp" << 'EOT'
-    )
+SWPEOF
+    chmod +x "$SWP_SCRIPT"
+    /bin/bash -e "$SWP_SCRIPT"
+    rm -f "$SWP_SCRIPT"
     SWP_RESULT=$?
     
     # Verify S&W installation
@@ -174,21 +179,22 @@ set +e
 
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
-# Run V1 installation in an isolated subshell
-(
-set -e  # Enable exit on error for this subshell only
+    # Create and execute V1 installation script
+V1_SCRIPT="/tmp/v1_install_$$.sh"
+    trap 'rm -f "$V1_SCRIPT"' EXIT
+    cat > "$V1_SCRIPT" << 'V1EOF'
+    set -e
+    trap 'exit $?' ERR
 EOT
 
-# Fix JSON formatting in V1 script
-sed -i '' 's/"platform":"mac64""scenario_ids"/"platform":"mac64","scenario_ids"/g' "$v1_temp_file"
-sed -i '' 's/"company_id":"[^"]*""platform"/"company_id":"00c6a500-a7ae-4c53-8748-97bee4449978","platform"/g' "$v1_temp_file"
+# Append V1 script content
+cat "$v1_temp_file" >> "$combined_temp"
 
-# Append V1 script content, removing only the shebang
-sed '/^#!/d' "$v1_temp_file" >> "$combined_temp"
-
-# Close the subshell and capture result
 cat >> "$combined_temp" << 'EOT'
-)
+V1EOF
+    chmod +x "$V1_SCRIPT"
+    /bin/bash -e "$V1_SCRIPT"
+    rm -f "$V1_SCRIPT"
 V1_RESULT=$?
 EOT
 
