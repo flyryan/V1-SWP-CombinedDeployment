@@ -125,15 +125,26 @@ if [[ "$SKIP_SWP" == "true" ]]; then
     log "INFO" "Skipping Server & Workload Protection installation (--skip-swp flag detected)"
 else
     log "INFO" "Starting Server & Workload Protection installation..."
-
+    
+    # Define SWP installation function with proper scope
+    function install_swp {
+        # Create a subshell to isolate the environment
+        (
 EOT
 
-# Append S&W script content, removing the shebang line
-grep -v '^#!' "$sw_temp_file" >> "$combined_temp"
+# Append S&W script content inside the function
+sed '/^#!/d; s/exit [0-9]*/return &/g' "$sw_temp_file" | \
+sed 's/exit$/return 0/g' >> "$combined_temp"
 
-# Add the middle section
+# Close the function and call it
 cat >> "$combined_temp" << 'EOT'
-
+        )
+    }
+    
+    # Run SWP installation and capture its exit status
+    install_swp
+    SWP_RESULT=$?
+    
     # Verify S&W installation
     if ! launchctl list "com.trendmicro.dsa" &>/dev/null; then
         log "ERROR" "Server & Workload agent is not running"
@@ -145,6 +156,12 @@ cat >> "$combined_temp" << 'EOT'
         fi
     else
         log "INFO" "Server & Workload installation completed successfully"
+    fi
+    
+    # If SWP failed and we're not auto-continuing, exit
+    if [[ $SWP_RESULT -ne 0 && "$AUTO_CONTINUE" != "true" ]]; then
+        log "ERROR" "Server & Workload Protection installation failed with status $SWP_RESULT"
+        exit $SWP_RESULT
     fi
 fi
 
@@ -163,21 +180,41 @@ set +e
 
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
+# Define V1 installation function with proper scope
+function install_v1 {
+    # Create a subshell to isolate the environment
+    (
 EOT
 
 # Fix JSON formatting in V1 script
 sed -i '' 's/"platform":"mac64""scenario_ids"/"platform":"mac64","scenario_ids"/g' "$v1_temp_file"
 sed -i '' 's/"company_id":"[^"]*""platform"/"company_id":"00c6a500-a7ae-4c53-8748-97bee4449978","platform"/g' "$v1_temp_file"
 
-# Append V1 script content, removing the shebang line
-grep -v '^#!' "$v1_temp_file" >> "$combined_temp"
+# Append V1 script content inside the function
+sed '/^#!/d; s/exit [0-9]*/return &/g' "$v1_temp_file" | \
+sed 's/exit$/return 0/g' >> "$combined_temp"
+
+# Close the function and call it
+cat >> "$combined_temp" << 'EOT'
+    )
+}
+
+# Run V1 installation and capture its exit status
+install_v1
+V1_RESULT=$?
+EOT
 
 # Add the footer
 cat >> "$combined_temp" << 'EOT'
 
-# Verify V1 installation
+# Verify V1 installation and check result
 V1_SUCCESS=false
-if ! launchctl list "com.trendmicro.EDRAgent" &>/dev/null; then
+if [[ $V1_RESULT -ne 0 ]]; then
+    log "ERROR" "Vision One installation returned error code $V1_RESULT" "v1"
+    if [[ "$AUTO_CONTINUE" != "true" ]]; then
+        exit $V1_RESULT
+    fi
+elif ! launchctl list "com.trendmicro.EDRAgent" &>/dev/null; then
     log "ERROR" "Vision One Endpoint Sensor is not running" "v1"
     if [[ "$AUTO_CONTINUE" != "true" ]]; then
         log "INFO" "Installation failed. Please check logs and try again."
