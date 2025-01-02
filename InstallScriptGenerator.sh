@@ -89,7 +89,8 @@ set -e
 INSTALL_LOG="/var/log/trend_install.log"
 V1_INSTALL_LOG="/tmp/v1es_install.log"
 V1_DEBUG_LOG="/tmp/v1es_debug.log"
-TEMP_DIR=$(mktemp -d)
+TEMP_DIR="/tmp/trend_install"
+mkdir -p "$TEMP_DIR"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
 # Check root privileges
@@ -205,14 +206,14 @@ log "DEBUG" "Current directory: $(pwd)" "v1"
 log "DEBUG" "Current user: $(whoami)" "v1"
 
 # Execute V1 script with preserved environment and sudo context
-(
-    cd "$TEMP_DIR"
-    # Capture both stdout and stderr
-    if ! sudo -E bash "$V1_SCRIPT" > >(tee -a "$V1_INSTALL_LOG") 2> >(tee -a "$V1_DEBUG_LOG" >&2); then
-        log "ERROR" "Vision One installation failed. Check $V1_DEBUG_LOG for details" "v1"
-        exit 1
-    fi
-)
+cd "$TEMP_DIR"
+log "DEBUG" "Changed to temp directory: $TEMP_DIR" "v1"
+
+# Execute V1 script directly
+if ! sudo -E bash "$V1_SCRIPT" > >(tee -a "$V1_INSTALL_LOG") 2> >(tee -a "$V1_DEBUG_LOG" >&2); then
+    log "ERROR" "Vision One installation failed. Check $V1_DEBUG_LOG for details" "v1"
+    exit 1
+fi
 
 # Debug info after V1 execution
 log "DEBUG" "V1 script execution completed" "v1"
