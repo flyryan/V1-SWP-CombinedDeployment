@@ -142,10 +142,15 @@ SWEOF
 
 chmod +x "$SW_SCRIPT"
 log "INFO" "Executing Server & Workload installation..."
-if ! "$SW_SCRIPT" 2>&1 | tee -a "$INSTALL_LOG"; then
-    log "ERROR" "Server & Workload installation failed"
-    exit 1
-fi
+
+# Execute S&W script with preserved environment
+(
+    cd "$TEMP_DIR"
+    if ! bash "$SW_SCRIPT" 2>&1 | tee -a "$INSTALL_LOG"; then
+        log "ERROR" "Server & Workload installation failed"
+        exit 1
+    fi
+)
 
 # Verify S&W installation
 if ! launchctl list "com.trendmicro.dsa" &>/dev/null; then
@@ -182,36 +187,14 @@ V1EOF
 chmod +x "$V1_SCRIPT"
 log "INFO" "Executing Vision One installation..." "v1"
 
-# Execute V1 script and capture all output
-if ! "$V1_SCRIPT" 2>&1 | tee -a "$V1_INSTALL_LOG"; then
-    # Check if the error was due to tar extraction
-    if grep -q "tar: Unrecognized archive format" "$V1_INSTALL_LOG"; then
-        log "ERROR" "Vision One installation failed - Archive format error. The installer may be a zip file." "v1"
-        log "INFO" "Attempting to extract with unzip..." "v1"
-        
-        # Try unzip if tar fails
-        if command -v unzip >/dev/null 2>&1; then
-            cd /tmp && unzip -o v1es_installer.zip -d v1es 2>&1 | tee -a "$V1_INSTALL_LOG"
-            if [ $? -eq 0 ]; then
-                log "INFO" "Successfully extracted with unzip, continuing installation..." "v1"
-                # Re-run the script after successful extraction
-                if ! "$V1_SCRIPT" 2>&1 | tee -a "$V1_INSTALL_LOG"; then
-                    log "ERROR" "Vision One installation failed after extraction" "v1"
-                    exit 1
-                fi
-            else
-                log "ERROR" "Failed to extract with unzip" "v1"
-                exit 1
-            fi
-        else
-            log "ERROR" "unzip command not found" "v1"
-            exit 1
-        fi
-    else
+# Execute V1 script with preserved environment
+(
+    cd "$TEMP_DIR"
+    if ! bash "$V1_SCRIPT" 2>&1 | tee -a "$V1_INSTALL_LOG"; then
         log "ERROR" "Vision One installation failed" "v1"
         exit 1
     fi
-fi
+)
 
 # Verify V1 installation
 if ! launchctl list "com.trendmicro.EDRAgent" &>/dev/null; then
