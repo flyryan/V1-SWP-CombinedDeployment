@@ -73,7 +73,6 @@ fi
 # Generate the combined installation script
 SCRIPT_NAME="trend_combined_install.sh"
 
-# Start writing the combined script
 cat > "$SCRIPT_NAME" << 'EOT'
 #!/bin/bash
 
@@ -90,9 +89,6 @@ set -e
 INSTALL_LOG="/var/log/trend_install.log"
 V1_INSTALL_LOG="/tmp/v1es_install.log"
 V1_DEBUG_LOG="/tmp/v1es_debug.log"
-TEMP_DIR="/tmp/trend_install"
-mkdir -p "$TEMP_DIR"
-trap 'rm -rf "$TEMP_DIR"' EXIT
 
 # Check root privileges
 if [[ $(whoami) != "root" ]]; then
@@ -141,9 +137,8 @@ check_platform
 # =====================
 log "INFO" "Starting Server & Workload Protection installation..."
 
-# Create a temporary script for S&W installation
-SW_SCRIPT="$TEMP_DIR/sw_install.sh"
-cat > "$SW_SCRIPT" << 'SWEOF'
+# Execute S&W installation commands
+{
 EOT
 
 # Append S&W script content
@@ -151,19 +146,7 @@ cat "$sw_temp_file" >> "$SCRIPT_NAME"
 
 # Continue the combined script
 cat >> "$SCRIPT_NAME" << 'EOT'
-SWEOF
-
-chmod +x "$SW_SCRIPT"
-log "INFO" "Executing Server & Workload installation..."
-
-# Execute S&W script with preserved environment and sudo context
-(
-    cd "$TEMP_DIR"
-    if ! sudo -E bash "$SW_SCRIPT" 2>&1 | tee -a "$INSTALL_LOG"; then
-        log "ERROR" "Server & Workload installation failed"
-        exit 1
-    fi
-)
+} 2>&1 | tee -a "$INSTALL_LOG"
 
 # Verify S&W installation
 if ! launchctl list "com.trendmicro.dsa" &>/dev/null; then
@@ -185,11 +168,8 @@ fi
 
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
-# Create a temporary script for V1 installation
-V1_SCRIPT="$TEMP_DIR/v1_install.sh"
-
-# Write V1 script content
-cat > "$V1_SCRIPT" << 'ENDV1'
+# Execute Vision One installation commands
+{
 EOT
 
 # Append V1 script content
@@ -197,26 +177,7 @@ cat "$v1_temp_file" >> "$SCRIPT_NAME"
 
 # Finish the combined script
 cat >> "$SCRIPT_NAME" << 'EOT'
-ENDV1
-
-chmod +x "$V1_SCRIPT"
-log "INFO" "Executing Vision One installation..." "v1"
-
-# Debug info before V1 execution
-log "DEBUG" "About to execute V1 script" "v1"
-log "DEBUG" "Script path: $V1_SCRIPT" "v1"
-log "DEBUG" "Current directory: $(pwd)" "v1"
-log "DEBUG" "Current user: $(whoami)" "v1"
-
-# Execute V1 script directly
-cd "$TEMP_DIR"
-if ! sudo -E bash "$V1_SCRIPT" > >(tee -a "$V1_INSTALL_LOG") 2> >(tee -a "$V1_DEBUG_LOG" >&2); then
-    log "ERROR" "Vision One installation failed. Check $V1_DEBUG_LOG for details" "v1"
-    exit 1
-fi
-
-# Debug info after V1 execution
-log "DEBUG" "V1 script execution completed" "v1"
+} 2>&1 | tee -a "$V1_INSTALL_LOG"
 
 # Verify V1 installation
 if ! launchctl list "com.trendmicro.EDRAgent" &>/dev/null; then
@@ -227,7 +188,6 @@ fi
 log "INFO" "Vision One installation completed successfully" "v1"
 log "INFO" "Combined installation completed successfully!"
 log "INFO" "Check $INSTALL_LOG and $V1_INSTALL_LOG for detailed logs"
-log "INFO" "For debugging information, check $V1_DEBUG_LOG"
 
 exit 0
 EOT
@@ -239,4 +199,3 @@ echo -e "\nCombined installation script has been generated: $SCRIPT_NAME"
 echo "Copy this script to target machines and run with sudo"
 echo "To skip the Vision One installation confirmation prompt, use: sudo ./$SCRIPT_NAME --auto-continue"
 echo "Installation logs will be written to /var/log/trend_install.log and /tmp/v1es_install.log"
-echo "Debug logs will be written to /tmp/v1es_debug.log"
