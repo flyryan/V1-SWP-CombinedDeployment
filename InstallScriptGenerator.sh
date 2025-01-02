@@ -4,11 +4,12 @@ set -e  # Exit on error
 
 # Secure temporary file creation with cleanup trap
 cleanup() {
-    rm -f "$sw_temp_file" "$v1_temp_file"
+    rm -f "$sw_temp_file" "$v1_temp_file" "$combined_temp"
 }
 
 sw_temp_file=$(mktemp)
 v1_temp_file=$(mktemp)
+combined_temp=$(mktemp)
 trap cleanup EXIT
 
 cat << "EOF"
@@ -73,11 +74,11 @@ fi
 # Generate the combined installation script
 SCRIPT_NAME="trend_combined_install.sh"
 
-cat > "$SCRIPT_NAME" << 'EOT'
+# First, create the script header
+cat > "$combined_temp" << 'EOT'
 #!/bin/bash
 
 # Combined Trend Micro Server & Workload + Vision One Endpoint Sensor Installer
-# Generated: $(date)
 
 # Global Variables
 INSTALL_LOG="/var/log/trend_install.log"
@@ -100,54 +101,67 @@ log() {
     fi
 }
 
+# Parse command line arguments
+SKIP_SWP=false
+AUTO_CONTINUE=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --skip-swp)
+            SKIP_SWP=true
+            ;;
+        --auto-continue)
+            AUTO_CONTINUE=true
+            ;;
+    esac
+done
+
 log "INFO" "Starting combined Trend Micro installation..."
 
 # =====================
 # Server & Workload Installation
 # =====================
-log "INFO" "Starting Server & Workload Protection installation..."
+if [[ "$SKIP_SWP" == "true" ]]; then
+    log "INFO" "Skipping Server & Workload Protection installation (--skip-swp flag detected)"
+else
+    log "INFO" "Starting Server & Workload Protection installation..."
 
-# Execute S&W installation in a subshell to isolate variables
-(
 EOT
 
-# Append S&W script content, removing the shebang line if present
-sed '1{/^#!/d}' "$sw_temp_file" >> "$SCRIPT_NAME"
+# Append S&W script content
+sed '1{/^#!/d}' "$sw_temp_file" >> "$combined_temp"
 
-# Continue the combined script
-cat >> "$SCRIPT_NAME" << 'EOT'
-) 2>&1 | tee -a "$INSTALL_LOG"
+# Add the middle section
+cat >> "$combined_temp" << 'EOT'
 
-# Verify S&W installation
-if ! launchctl list "com.trendmicro.dsa" &>/dev/null; then
-    log "ERROR" "Server & Workload agent is not running"
-    exit 1
+    # Verify S&W installation
+    if ! launchctl list "com.trendmicro.dsa" &>/dev/null; then
+        log "ERROR" "Server & Workload agent is not running"
+        exit 1
+    fi
+
+    log "INFO" "Server & Workload installation completed successfully"
 fi
-
-log "INFO" "Server & Workload installation completed successfully"
 
 # =====================
 # Vision One Installation
 # =====================
 
 # Check if auto-continue flag is set
-if [[ "$1" != "--auto-continue" ]]; then
+if [[ "$AUTO_CONTINUE" != "true" && "$SKIP_SWP" != "true" ]]; then
     echo -n "Press Enter to continue with Vision One installation or Ctrl+C to cancel..."
     read
 fi
 
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
-# Execute Vision One installation in a subshell to isolate variables
-(
 EOT
 
-# Append V1 script content, removing the shebang line if present
-sed '1{/^#!/d}' "$v1_temp_file" >> "$SCRIPT_NAME"
+# Append V1 script content
+sed '1{/^#!/d}' "$v1_temp_file" >> "$combined_temp"
 
-# Finish the combined script
-cat >> "$SCRIPT_NAME" << 'EOT'
-) 2>&1 | tee -a "$V1_INSTALL_LOG"
+# Add the footer
+cat >> "$combined_temp" << 'EOT'
 
 # Verify V1 installation
 if ! launchctl list "com.trendmicro.EDRAgent" &>/dev/null; then
@@ -162,10 +176,15 @@ log "INFO" "Check $INSTALL_LOG and $V1_INSTALL_LOG for detailed logs"
 exit 0
 EOT
 
-# Make the generated script executable
+# Create the final script
+cp "$combined_temp" "$SCRIPT_NAME"
 chmod +x "$SCRIPT_NAME"
 
 echo -e "\nCombined installation script has been generated: $SCRIPT_NAME"
 echo "Copy this script to target machines and run with sudo"
-echo "To skip the Vision One installation confirmation prompt, use: sudo ./$SCRIPT_NAME --auto-continue"
+echo "Usage:"
+echo "  Normal installation:              sudo ./$SCRIPT_NAME"
+echo "  Skip confirmation prompt:         sudo ./$SCRIPT_NAME --auto-continue"
+echo "  Skip S&W installation (debug):    sudo ./$SCRIPT_NAME --skip-swp"
+echo "  Skip both:                        sudo ./$SCRIPT_NAME --skip-swp --auto-continue"
 echo "Installation logs will be written to /var/log/trend_install.log and /tmp/v1es_install.log"
