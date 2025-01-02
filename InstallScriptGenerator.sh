@@ -186,7 +186,7 @@ log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 # Create and execute V1 installation script
 V1_SCRIPT="/tmp/v1_install_$$.sh"
 trap 'rm -f "$V1_SCRIPT"' EXIT
-cat > "$V1_SCRIPT " << 'V1EOF'
+cat > "$V1_SCRIPT" << 'V1EOF'
 EOT
 
 # Append V1 script content
