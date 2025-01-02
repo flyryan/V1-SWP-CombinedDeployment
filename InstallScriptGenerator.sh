@@ -128,8 +128,8 @@ else
 
 EOT
 
-# Append S&W script content
-sed '1{/^#!/d}' "$sw_temp_file" >> "$combined_temp"
+# Append S&W script content, removing the shebang line
+grep -v '^#!' "$sw_temp_file" >> "$combined_temp"
 
 # Add the middle section
 cat >> "$combined_temp" << 'EOT'
@@ -157,8 +157,12 @@ log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
 EOT
 
-# Append V1 script content
-sed '1{/^#!/d}' "$v1_temp_file" >> "$combined_temp"
+# Fix JSON formatting in V1 script
+sed -i '' 's/"platform":"mac64""scenario_ids"/"platform":"mac64","scenario_ids"/g' "$v1_temp_file"
+sed -i '' 's/"company_id":"[^"]*""platform"/"company_id":"00c6a500-a7ae-4c53-8748-97bee4449978","platform"/g' "$v1_temp_file"
+
+# Append V1 script content, removing the shebang line
+grep -v '^#!' "$v1_temp_file" >> "$combined_temp"
 
 # Add the footer
 cat >> "$combined_temp" << 'EOT'
