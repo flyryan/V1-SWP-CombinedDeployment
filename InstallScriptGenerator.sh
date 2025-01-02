@@ -57,17 +57,17 @@ echo "Paste the entire S&W deployment script (Press Ctrl+D when finished):"
 cat > "$sw_temp_file"
 
 echo -e "\n=== Vision One Script ===\n"
-echo "Paste the entire Vision One deployment script (Press Ctrl+D when finished - Note: You may have to press twice.):"
+echo "Paste the entire Vision One deployment script (Press Ctrl+D when finished):"
 cat > "$v1_temp_file"
 
 # Basic validation of input scripts
 if ! grep -q "dsa_control" "$sw_temp_file"; then
-    echo "Error: Invalid Server & Workload Security script (missing dsa_control)"
+    echo "Error: Invalid Server & Workload Security script (missing dsa_control)."
     exit 1
 fi
 
 if ! grep -q "endpoint_basecamp" "$v1_temp_file"; then
-    echo "Error: Invalid Vision One script (missing endpoint_basecamp)"
+    echo "Error: Invalid Vision One script (missing endpoint_basecamp)."
     exit 1
 fi
 
@@ -132,7 +132,9 @@ else
     cat > "$SWP_SCRIPT" << 'SWPEOF'
 EOT
 
-# Append SWP script content, preserving original script but removing shebang
+#
+# --- Fix #1: remove the SWP script’s first line (shebang) before embedding
+#
 sed '1d' "$sw_temp_file" >> "$combined_temp"
 
 cat >> "$combined_temp" << 'EOT'
@@ -174,26 +176,28 @@ fi
 # =====================
 # Vision One Installation
 # =====================
-
-# Only prompt for continuation if SWP was installed and auto-continue is not set
 if [[ "$AUTO_CONTINUE" != "true" && "$SKIP_SWP" != "true" ]]; then
     echo -n "Press Enter to continue with Vision One installation or Ctrl+C to cancel..."
-    read
+    read -r
 fi
 
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
 # Create and execute V1 installation script
 V1_SCRIPT="/tmp/v1_install_$$.sh"
+trap 'rm -f "$V1_SCRIPT"' EXIT
 cat > "$V1_SCRIPT" << 'V1EOF'
 EOT
 
-# Append V1 script content
-cat "$v1_temp_file" >> "$combined_temp"
+#
+# --- Fix #2: remove the Vision One script’s first line (shebang) before embedding
+#
+sed '1d' "$v1_temp_file" >> "$combined_temp"
 
 cat >> "$combined_temp" << 'EOT'
 V1EOF
 chmod +x "$V1_SCRIPT"
+
 # Execute V1 script with proper environment
 (
     cd /tmp
@@ -243,7 +247,7 @@ cp "$combined_temp" "$SCRIPT_NAME"
 chmod +x "$SCRIPT_NAME"
 
 echo -e "\nCombined installation script has been generated: $SCRIPT_NAME"
-echo "Copy this script to target machines and run with sudo"
+echo "Copy this script to target machines and run with sudo."
 echo "Usage:"
 echo "  Normal installation:              sudo ./$SCRIPT_NAME"
 echo "  Skip confirmation prompt:         sudo ./$SCRIPT_NAME --auto-continue"
