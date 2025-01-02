@@ -185,15 +185,11 @@ log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
 # Create and execute V1 installation script
 V1_SCRIPT="/tmp/v1_install_$$.sh"
-cat > "$V1_SCRIPT" << V1EOF
-#!/bin/bash
-
-# Ensure log directory exists
-mkdir -p "$(dirname "${V1_INSTALL_LOG}")"
+cat > "$V1_SCRIPT" << 'V1EOF'
 EOT
 
-# Append V1 script content, preserving original script but removing shebang
-sed '1d' "$v1_temp_file" >> "$combined_temp"
+# Append V1 script content
+cat "$v1_temp_file" >> "$combined_temp"
 
 cat >> "$combined_temp" << 'EOT'
 V1EOF
