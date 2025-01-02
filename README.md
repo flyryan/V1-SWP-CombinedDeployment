@@ -65,8 +65,26 @@ Before using this script generator, you need:
 
 5. Deploy the generated script:
    ```bash
+   # Normal installation (interactive)
    sudo ./trend_combined_install.sh
+
+   # Skip confirmation prompts
+   sudo ./trend_combined_install.sh --auto-continue
+
+   # Skip Server & Workload Protection installation
+   sudo ./trend_combined_install.sh --skip-swp
+
+   # Skip both confirmation and S&W installation
+   sudo ./trend_combined_install.sh --skip-swp --auto-continue
    ```
+
+## Command-Line Options
+
+The generated installation script supports the following command-line flags:
+
+- `--auto-continue`: Skips the confirmation prompt between S&W and Vision One installations
+- `--skip-swp`: Skips the Server & Workload Protection installation entirely
+- Both flags can be combined for fully automated Vision One-only installation
 
 ## Features
 
