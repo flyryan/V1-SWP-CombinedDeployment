@@ -143,10 +143,10 @@ SWEOF
 chmod +x "$SW_SCRIPT"
 log "INFO" "Executing Server & Workload installation..."
 
-# Execute S&W script with preserved environment
+# Execute S&W script with preserved environment and sudo context
 (
     cd "$TEMP_DIR"
-    if ! bash "$SW_SCRIPT" 2>&1 | tee -a "$INSTALL_LOG"; then
+    if ! sudo -E bash "$SW_SCRIPT" 2>&1 | tee -a "$INSTALL_LOG"; then
         log "ERROR" "Server & Workload installation failed"
         exit 1
     fi
@@ -187,10 +187,10 @@ V1EOF
 chmod +x "$V1_SCRIPT"
 log "INFO" "Executing Vision One installation..." "v1"
 
-# Execute V1 script with preserved environment
+# Execute V1 script with preserved environment and sudo context
 (
     cd "$TEMP_DIR"
-    if ! bash "$V1_SCRIPT" 2>&1 | tee -a "$V1_INSTALL_LOG"; then
+    if ! sudo -E bash "$V1_SCRIPT" 2>&1 | tee -a "$V1_INSTALL_LOG"; then
         log "ERROR" "Vision One installation failed" "v1"
         exit 1
     fi
