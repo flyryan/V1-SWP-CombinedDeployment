@@ -142,7 +142,7 @@ SWEOF
 
 chmod +x "$SW_SCRIPT"
 log "INFO" "Executing Server & Workload installation..."
-if ! "$SW_SCRIPT"; then
+if ! "$SW_SCRIPT" 2>&1 | tee -a "$INSTALL_LOG"; then
     log "ERROR" "Server & Workload installation failed"
     exit 1
 fi
@@ -158,6 +158,13 @@ log "INFO" "Server & Workload installation completed successfully"
 # =====================
 # Vision One Installation
 # =====================
+
+# Check if auto-continue flag is set
+if [[ "$1" != "--auto-continue" ]]; then
+    echo -n "Press Enter to continue with Vision One installation or Ctrl+C to cancel..."
+    read
+fi
+
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
 # Create a temporary script for V1 installation
@@ -174,9 +181,36 @@ V1EOF
 
 chmod +x "$V1_SCRIPT"
 log "INFO" "Executing Vision One installation..." "v1"
-if ! "$V1_SCRIPT"; then
-    log "ERROR" "Vision One installation failed" "v1"
-    exit 1
+
+# Execute V1 script and capture all output
+if ! "$V1_SCRIPT" 2>&1 | tee -a "$V1_INSTALL_LOG"; then
+    # Check if the error was due to tar extraction
+    if grep -q "tar: Unrecognized archive format" "$V1_INSTALL_LOG"; then
+        log "ERROR" "Vision One installation failed - Archive format error. The installer may be a zip file." "v1"
+        log "INFO" "Attempting to extract with unzip..." "v1"
+        
+        # Try unzip if tar fails
+        if command -v unzip >/dev/null 2>&1; then
+            cd /tmp && unzip -o v1es_installer.zip -d v1es 2>&1 | tee -a "$V1_INSTALL_LOG"
+            if [ $? -eq 0 ]; then
+                log "INFO" "Successfully extracted with unzip, continuing installation..." "v1"
+                # Re-run the script after successful extraction
+                if ! "$V1_SCRIPT" 2>&1 | tee -a "$V1_INSTALL_LOG"; then
+                    log "ERROR" "Vision One installation failed after extraction" "v1"
+                    exit 1
+                fi
+            else
+                log "ERROR" "Failed to extract with unzip" "v1"
+                exit 1
+            fi
+        else
+            log "ERROR" "unzip command not found" "v1"
+            exit 1
+        fi
+    else
+        log "ERROR" "Vision One installation failed" "v1"
+        exit 1
+    fi
 fi
 
 # Verify V1 installation
@@ -197,4 +231,5 @@ chmod +x "$SCRIPT_NAME"
 
 echo -e "\nCombined installation script has been generated: $SCRIPT_NAME"
 echo "Copy this script to target machines and run with sudo"
+echo "To skip the Vision One installation confirmation prompt, use: sudo ./$SCRIPT_NAME --auto-continue"
 echo "Installation logs will be written to /var/log/trend_install.log and /tmp/v1es_install.log"
