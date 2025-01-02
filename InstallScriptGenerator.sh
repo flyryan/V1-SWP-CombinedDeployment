@@ -126,23 +126,17 @@ if [[ "$SKIP_SWP" == "true" ]]; then
 else
     log "INFO" "Starting Server & Workload Protection installation..."
     
-    # Define SWP installation function with proper scope
-    function install_swp {
-        # Create a subshell to isolate the environment
-        (
+    # Run SWP installation in an isolated subshell
+    (
+    set -e  # Enable exit on error for this subshell only
 EOT
 
-# Append S&W script content inside the function
-sed '/^#!/d; s/exit [0-9]*/return &/g' "$sw_temp_file" | \
-sed 's/exit$/return 0/g' >> "$combined_temp"
+# Append S&W script content, removing only the shebang
+sed '/^#!/d' "$sw_temp_file" >> "$combined_temp"
 
-# Close the function and call it
+# Close the subshell and capture result
 cat >> "$combined_temp" << 'EOT'
-        )
-    }
-    
-    # Run SWP installation and capture its exit status
-    install_swp
+    )
     SWP_RESULT=$?
     
     # Verify S&W installation
@@ -180,27 +174,21 @@ set +e
 
 log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
-# Define V1 installation function with proper scope
-function install_v1 {
-    # Create a subshell to isolate the environment
-    (
+# Run V1 installation in an isolated subshell
+(
+set -e  # Enable exit on error for this subshell only
 EOT
 
 # Fix JSON formatting in V1 script
 sed -i '' 's/"platform":"mac64""scenario_ids"/"platform":"mac64","scenario_ids"/g' "$v1_temp_file"
 sed -i '' 's/"company_id":"[^"]*""platform"/"company_id":"00c6a500-a7ae-4c53-8748-97bee4449978","platform"/g' "$v1_temp_file"
 
-# Append V1 script content inside the function
-sed '/^#!/d; s/exit [0-9]*/return &/g' "$v1_temp_file" | \
-sed 's/exit$/return 0/g' >> "$combined_temp"
+# Append V1 script content, removing only the shebang
+sed '/^#!/d' "$v1_temp_file" >> "$combined_temp"
 
-# Close the function and call it
+# Close the subshell and capture result
 cat >> "$combined_temp" << 'EOT'
-    )
-}
-
-# Run V1 installation and capture its exit status
-install_v1
+)
 V1_RESULT=$?
 EOT
 
