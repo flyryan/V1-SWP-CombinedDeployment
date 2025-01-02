@@ -73,7 +73,8 @@ fi
 # Generate the combined installation script
 SCRIPT_NAME="trend_combined_install.sh"
 
-cat << 'EOT' > "$SCRIPT_NAME"
+# Start writing the combined script
+cat > "$SCRIPT_NAME" << 'EOT'
 #!/bin/bash
 
 # Combined Trend Micro Server & Workload + Vision One Endpoint Sensor Installer
@@ -145,11 +146,11 @@ SW_SCRIPT="$TEMP_DIR/sw_install.sh"
 cat > "$SW_SCRIPT" << 'SWEOF'
 EOT
 
-# Append the S&W script content
+# Append S&W script content
 cat "$sw_temp_file" >> "$SCRIPT_NAME"
 
-# Continue with the combined script
-cat << 'EOT' >> "$SCRIPT_NAME"
+# Continue the combined script
+cat >> "$SCRIPT_NAME" << 'EOT'
 SWEOF
 
 chmod +x "$SW_SCRIPT"
@@ -186,15 +187,17 @@ log "INFO" "Starting Vision One Endpoint Sensor installation..." "v1"
 
 # Create a temporary script for V1 installation
 V1_SCRIPT="$TEMP_DIR/v1_install.sh"
-cat > "$V1_SCRIPT" << 'V1EOF'
+
+# Write V1 script content
+cat > "$V1_SCRIPT" << 'ENDV1'
 EOT
 
-# Append the V1 script content
+# Append V1 script content
 cat "$v1_temp_file" >> "$SCRIPT_NAME"
 
 # Finish the combined script
-cat << 'EOT' >> "$SCRIPT_NAME"
-V1EOF
+cat >> "$SCRIPT_NAME" << 'EOT'
+ENDV1
 
 chmod +x "$V1_SCRIPT"
 log "INFO" "Executing Vision One installation..." "v1"
@@ -205,11 +208,8 @@ log "DEBUG" "Script path: $V1_SCRIPT" "v1"
 log "DEBUG" "Current directory: $(pwd)" "v1"
 log "DEBUG" "Current user: $(whoami)" "v1"
 
-# Execute V1 script with preserved environment and sudo context
-cd "$TEMP_DIR"
-log "DEBUG" "Changed to temp directory: $TEMP_DIR" "v1"
-
 # Execute V1 script directly
+cd "$TEMP_DIR"
 if ! sudo -E bash "$V1_SCRIPT" > >(tee -a "$V1_INSTALL_LOG") 2> >(tee -a "$V1_DEBUG_LOG" >&2); then
     log "ERROR" "Vision One installation failed. Check $V1_DEBUG_LOG for details" "v1"
     exit 1
